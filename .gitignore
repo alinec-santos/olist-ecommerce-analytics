@@ -1,0 +1,27 @@
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Dados locais e bancos (não versionar arquivos pesados nem banco local)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# Configurações de IDE / Ferramentas
+.vscode/
+.idea/
+.qodo/
+
+# Power BI (arquivos temporários)
+*.pbix.temp
