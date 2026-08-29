@@ -43,3 +43,20 @@ SELECT
     total_items_count 
 FROM vw_fact_orders 
 LIMIT 5;
+
+-- View: Dimensao Produtos Tratada
+-- Cruza produtos com a traducao de categoria e trata valores nulos
+CREATE VIEW IF NOT EXISTS vw_dim_products AS
+SELECT 
+    p.product_id,
+    COALESCE(p.product_category_name, 'nao_informado') AS category_name_pt,
+    COALESCE(t.product_category_name_english, 'not_informed') AS category_name_en,
+    COALESCE(p.product_weight_g, 0) AS weight_g,
+    COALESCE(p.product_length_cm, 0) AS length_cm,
+    COALESCE(p.product_height_cm, 0) AS height_cm,
+    COALESCE(p.product_width_cm, 0) AS width_cm
+FROM products p
+LEFT JOIN product_category_name_translation t 
+    ON p.product_category_name = t.product_category_name;
+
+SELECT * FROM vw_dim_products LIMIT 5;
