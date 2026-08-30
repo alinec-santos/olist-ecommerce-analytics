@@ -34,6 +34,22 @@ O projeto cobre todo o ciclo de vida analítico:
 | **Concentração Regional** | • **SP:** 41 Mil pedidos (~42,7%)<br>• **RJ:** 12 Mil \| **MG:** 11 Mil | O Sudeste concentra mais de 65% de todo o volume transacionado. | Otimizar rotas logísticas e avaliar centros de distribuição parceiros no Sul e Nordeste. |
 
 ---
+---
+
+## 🎯 Segmentação de Clientes (Análise RFM)
+
+Utilizando a técnica de **Recência, Frequência e Valor Monetário (RFM)** implementada em `src/analysis/rfm_segmentation.py`, os **93.358 clientes únicos** foram classificados com base no histórico transacional:
+
+| Segmento RFM | Clientes | % da Base | Perfil Comportamental | Estratégia Recomendada |
+| :--- | :---: | :---: | :--- | :--- |
+| **Leais com Alto Valor** | **21.868** | **23,4%** | Compraram recentemente e gastam acima da média. | Ofertas de produtos premium, cross-selling e atendimento prioritário. |
+| **Clientes Recentes** | **21.770** | **23,3%** | Fizeram a 1ª compra há pouco tempo. | Régua de onboarding, cupom de incentivo para 2ª compra rápida. |
+| **Em Risco de Churn** | **18.577** | **19,9%** | Passaram do ciclo médio de recompra e estão esfriando. | Campanhas de remarketing com descontos agressivos de reativação. |
+| **Hibernando / Perdidos**| **11.528** | **12,3%** | Baixo ticket e última compra muito antiga. | Comunicação sazonal de baixo custo (e-mail marketing/notificações push). |
+| **Potenciais Clientes** | **11.295** | **12,1%** | Recência mediana e ticket moderado. | Recomendações personalizadas baseadas nas categorias de interesse. |
+| **Grandes Contas Inativas**| **7.111** | **7,6%** | Gastaram muito no passado, mas estão sem comprar há muito tempo. | Contato direto via CRM/pesquisa de satisfação para entender a inatividade. |
+| **Champions** | **1.209** | **1,3%** | Clientes mais frequentes com maior volume financeiro da plataforma. | Acesso antecipado a lançamentos, programa VIP e suporte exclusivo. |
+---
 
 ## 🏗️ Arquitetura e Modelagem de Dados
 
@@ -89,17 +105,26 @@ CALCULATE(
 ## 📁 Estrutura de Pastas
 olist-ecommerce-analytics/  
 ├── dashboards/  
-│   └── ecommerce_sales_overview.pbix   # Arquivo Power BI do relatório  
+│   ├── ecommerce_sales_overview.pbix  
+│   └── ecommerce_sales_overview.png  
 ├── data/  
-│   ├── processed/                      # Tabelas tratadas para o BI (CSVs e SQLite)  
-│   └── raw/                            # Base de dados original (Olist CSVs)  
+│   ├── processed/  
+│   │   ├── dim_order_items.csv  
+│   │   ├── dim_order_payments.csv  
+│   │   ├── dim_products.csv  
+│   │   ├── fact_orders.csv  
+│   │   ├── olist.db  
+│   │   └── rfm_segmented_customers.csv  
+│   └── raw/  
 ├── sql/  
-│   ├── 01_data_profiling.sql           # Queries de exploração inicial  
-│   └── 02_create_views.sql             # Definição de views SQL  
+│   ├── 01_data_profiling.sql  
+│   └── 02_create_views.sql  
 ├── src/  
+│   ├── analysis/  
+│   │   └── rfm_segmentation.py  
 │   └── etl/  
-│       ├── ingest_to_sqlite.py         # Script de carga inicial  
-│       └── export_bi_tables.py         # Pipeline de transformação e exportação  
+│       ├── ingest_to_sqlite.py  
+│       └── export_bi_tables.py  
 ├── requirements.txt  
 └── README.md  
 
