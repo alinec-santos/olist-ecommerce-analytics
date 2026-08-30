@@ -39,3 +39,6 @@ SELECT
     COUNT(customer_id) AS total_orders_clients,
     COUNT(DISTINCT customer_unique_id) AS unique_real_customers
 FROM customers;
+
+
+

@@ -1,36 +1,107 @@
-import os
+import sqlite3
 import pandas as pd
-from sqlalchemy import create_engine
+from pathlib import Path
 
-# 1. Caminhos do projeto
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PROCESSED_DATA_DIR = os.path.join(BASE_DIR, "data", "processed")
-DATABASE_PATH = os.path.join(PROCESSED_DATA_DIR, "olist.db")
+# Raiz do projeto
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-def export_views():
-    """Lê as views analíticas do SQLite e exporta em CSVs tratados para o Power BI."""
-    engine = create_engine(f"sqlite:///{DATABASE_PATH}")
-    
-    views_to_export = [
-        ("vw_fact_orders", "fact_orders.csv"),
-        ("vw_dim_products", "dim_products.csv"),
-        ("order_items", "dim_order_items.csv"),
-        ("order_payments", "dim_order_payments.csv")
-    ]
-    
-    print("Iniciando exportação das tabelas analíticas para o Power BI...\n")
-    
-    for view_name, output_file in views_to_export:
-        print(f"-> Exportando '{view_name}'...")
-        query = f"SELECT * FROM {view_name}"
-        df = pd.read_sql(query, con=engine)
-        
-        output_path = os.path.join(PROCESSED_DATA_DIR, output_file)
-        df.to_csv(output_path, index=False, encoding="utf-8")
-        
-        print(f"   [OK] Salvo em: {output_path} ({len(df):,} linhas)\n")
-        
-    print("Exportação concluída com sucesso! Os arquivos estão prontos para o Power BI.")
+# Caminho exato do banco com os dados
+DB_PATH = BASE_DIR / "data" / "processed" / "olist.db"
+OUTPUT_DIR = BASE_DIR / "data" / "processed"
 
-if __name__ == "__main__":
-    export_views()
+print(f"-> Conectando ao banco de dados: {DB_PATH}")
+
+conn = sqlite3.connect(DB_PATH)
+
+# 1. Fact Orders (Grão: exatamente 1 linha por pedido com valores consolidados)
+query_fact_orders = """
+WITH items_agg AS (
+    SELECT 
+        order_id,
+        ROUND(SUM(price), 2) AS total_item_value,
+        ROUND(SUM(freight_value), 2) AS total_freight_value,
+        ROUND(SUM(price + freight_value), 2) AS total_order_value,
+        COUNT(order_item_id) AS total_items_count
+    FROM order_items
+    GROUP BY order_id
+)
+SELECT 
+    o.order_id,
+    o.customer_id,
+    c.customer_unique_id,
+    c.customer_city,
+    c.customer_state,
+    o.order_status,
+    DATE(o.order_purchase_timestamp) AS order_date,
+    STRFTIME('%Y-%m', o.order_purchase_timestamp) AS order_year_month,
+    o.order_purchase_timestamp,
+    o.order_delivered_customer_date,
+    o.order_estimated_delivery_date,
+    COALESCE(i.total_item_value, 0) AS total_item_value,
+    COALESCE(i.total_freight_value, 0) AS total_freight_value,
+    COALESCE(i.total_order_value, 0) AS total_order_value,
+    COALESCE(i.total_items_count, 0) AS total_items_count
+FROM orders o
+INNER JOIN customers c ON o.customer_id = c.customer_id
+LEFT JOIN items_agg i ON o.order_id = i.order_id
+WHERE o.order_id IS NOT NULL AND o.order_id != '';
+"""
+
+# 2. Dim Products (Produtos com categoria tratada)
+query_dim_products = """
+SELECT 
+    p.product_id,
+    COALESCE(p.product_category_name, 'nao_informado') AS category_name_pt,
+    COALESCE(t.product_category_name_english, 'not_informed') AS category_name_en,
+    COALESCE(p.product_weight_g, 0) AS weight_g,
+    COALESCE(p.product_length_cm, 0) AS length_cm,
+    COALESCE(p.product_height_cm, 0) AS height_cm,
+    COALESCE(p.product_width_cm, 0) AS width_cm
+FROM products p
+LEFT JOIN product_category_name_translation t 
+    ON p.product_category_name = t.product_category_name
+WHERE p.product_id IS NOT NULL AND p.product_id != '';
+"""
+
+# 3. Dim Order Items (Itens com preços)
+query_dim_order_items = """
+SELECT 
+    order_id,
+    order_item_id,
+    product_id,
+    seller_id,
+    shipping_limit_date,
+    price,
+    freight_value
+FROM order_items
+WHERE order_id IS NOT NULL AND product_id IS NOT NULL;
+"""
+
+# 4. Dim Payments (Formas de Pagamento)
+query_dim_payments = """
+SELECT 
+    order_id,
+    payment_sequential,
+    payment_type,
+    payment_installments,
+    payment_value
+FROM order_payments
+WHERE order_id IS NOT NULL;
+"""
+
+tables = {
+    "fact_orders.csv": query_fact_orders,
+    "dim_products.csv": query_dim_products,
+    "dim_order_items.csv": query_dim_order_items,
+    "dim_order_payments.csv": query_dim_payments
+}
+
+for filename, sql in tables.items():
+    df = pd.read_sql_query(sql, conn)
+    output_file = OUTPUT_DIR / filename
+    # Exporta com ponto e vírgula como delimitador e vírgula como separador decimal (Padrão BR)
+    df.to_csv(output_file, sep=';', decimal=',', index=False, encoding='utf-8-sig')
+    print(f"[OK] Exportado: {filename} -> {len(df):,} linhas")
+
+conn.close()
+print("\n-> CSVs exportados com formato decimal brasileiro!")
